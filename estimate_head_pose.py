@@ -15,6 +15,7 @@ from mark_detector import MarkDetector
 from os_detector import detect_os
 from pose_estimator import PoseEstimator
 from stabilizer import Stabilizer
+import math
 
 print("OpenCV version: {}".format(cv2.__version__))
 
@@ -22,6 +23,9 @@ print("OpenCV version: {}".format(cv2.__version__))
 detect_os()
 
 CNN_INPUT_SIZE = 128
+
+real_width = 114
+focal_length = 474
 
 # Take arguments from user input.
 parser = ArgumentParser()
@@ -119,8 +123,17 @@ def main():
             marks[:, 1] += facebox[1]
 
             # Uncomment following line to show raw marks.
-            # mark_detector.draw_marks(
-            #     frame, marks, color=(0, 255, 0))
+            mark_detector.draw_marks(
+                frame, marks, color=(0, 255, 0))
+            right_corner = tuple([int(i) for i in marks[36]])
+            left_corner = tuple([int(i) for i in marks[45]])
+            # print(marks[36], marks[45])
+            cv2.line(frame, right_corner, left_corner, (255, 0, 0), 2)
+
+            pixel_distance = int(math.sqrt((right_corner[0] - left_corner[0]) ** 2 + (right_corner[1] - left_corner[1]) ** 2))
+            estimated_distance = (real_width * focal_length) / pixel_distance
+
+            cv2.putText(frame, str(round(estimated_distance, 2)), (100, 100), cv2.FONT_HERSHEY_SIMPLEX, 3, (255, 0, 0))
 
             # Uncomment following line to show facebox.
             # mark_detector.draw_box(frame, [facebox])
@@ -137,15 +150,15 @@ def main():
             steady_pose = np.reshape(steady_pose, (-1, 3))
 
             # Uncomment following line to draw pose annotation on frame.
-            # pose_estimator.draw_annotation_box(
-            #     frame, pose[0], pose[1], color=(255, 128, 128))
+            pose_estimator.draw_annotation_box(
+                 frame, pose[0], pose[1], color=(255, 128, 128))
 
             # Uncomment following line to draw stabile pose annotation on frame.
-            pose_estimator.draw_annotation_box(
-                frame, steady_pose[0], steady_pose[1], color=(128, 255, 128))
+            # pose_estimator.draw_annotation_box(
+            #    frame, steady_pose[0], steady_pose[1], color=(128, 255, 128))
 
             # Uncomment following line to draw head axes on frame.
-            # pose_estimator.draw_axes(frame, stabile_pose[0], stabile_pose[1])
+            pose_estimator.draw_axes(frame, steady_pose[0], steady_pose[1])
 
         # Show preview.
         cv2.imshow("Preview", frame)
