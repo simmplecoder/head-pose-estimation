@@ -36,6 +36,25 @@ parser.add_argument("--cam", type=int, default=None,
 args = parser.parse_args()
 
 
+def rotate_vector(v, x_angle, y_angle):
+    rotated_v = np.copy(v)
+    rotated_v[1] = -rotated_v[1]
+    # rotate around y axis, e.g. in horizontal plane
+    x_prime = v[0] * math.cos(x_angle) + v[2] * math.sin(x_angle)
+    y_prime = v[1]
+    z_prime = -v[0] * math.sin(x_angle) + v[2] * math.cos(x_angle)
+    rotated_v[0] = x_prime
+    rotated_v[1] = y_prime
+    rotated_v[2] = z_prime
+
+    # rotate around x axis, e.g. in vertical plane
+    x_prime = rotated_v[0]
+    y_prime = rotated_v[1] * math.cos(y_angle) - rotated_v[2] * math.sin(y_angle)
+    z_prime = rotated_v[1] * math.sin(y_angle) + rotated_v[2] * math.cos(y_angle)
+
+    return rotated_v
+
+
 def sharpen(gray):
     blurred = gray.copy()
     cv2.GaussianBlur(gray, (5, 5), 0.8, blurred)
@@ -78,7 +97,7 @@ def process_eyes(frame, landmarks):
     origins = [[int(landmarks[36][0]), int(landmarks[38][1])], [int(landmarks[42][0]), int(landmarks[44][1])]]
 
     for eye, origin in zip(eyes, origins):
-        circles = cv2.HoughCircles(eye, cv2.HOUGH_GRADIENT, 1, eye.shape[0]/64, param1=200, param2=10, minRadius=5, maxRadius=30)
+        circles = cv2.HoughCircles(eye, cv2.HOUGH_GRADIENT, 1, eye.shape[0]/64, param1=200, param2=13, minRadius=5, maxRadius=30)
         eye_center = (eye.shape[0] / 2, eye.shape[1] / 2)
         if circles is None:
             # no circles were detected on either or both eyes
@@ -92,7 +111,7 @@ def process_eyes(frame, landmarks):
         # for i in circles[0, :]:
         #     cv2.circle(eye, (i[0], i[1]), i[2], (255, 255, 255), 2)
         angles = adjust_angle(eye, the_circle[0], the_circle[1])
-        cv2.circle(frame, (the_circle[0] + origin[0], the_circle[1] + origin[1]), 2, (255, 255, 255))
+        cv2.circle(frame, (the_circle[0] + origin[0] - 7, the_circle[1] + origin[1] - 7), 2, (255, 255, 255))
         centers.append(angles)
 
     centers = {'right': centers[0], 'left': centers[1]}
@@ -235,6 +254,11 @@ def main():
             if bool(angles) is True:
                 # print(angles)
                 angles = cvt_to_radians(angles)
+                rotated_vector = rotate_vector(steady_pose[0], angles['right'][0], angles['right'][1])
+                shifted_translation_vector = np.copy(steady_pose[1])
+                shifted_translation_vector[0] += 50
+                shifted_translation_vector[1] += 50
+                pose_estimator.draw_axes(frame, rotated_vector, shifted_translation_vector)
 
         # Show preview.
         cv2.imshow("Preview", frame)
